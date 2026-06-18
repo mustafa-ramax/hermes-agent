@@ -1,5 +1,6 @@
 import { useStore } from '@nanostores/react'
 import { useQueryClient } from '@tanstack/react-query'
+import type { ReactNode} from 'react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 
@@ -199,7 +200,12 @@ export function DesktopController() {
   const navigate = useNavigate()
 
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
-  const [selectedProjectId, setSelectedProjectId] = useState<null | string>(null)
+
+  // Derive the active project directly from the URL so it clears automatically
+  // when the user navigates to a session, new chat, or any other view.
+  const selectedProjectId = location.pathname.startsWith('/project/')
+    ? decodeURIComponent(location.pathname.slice('/project/'.length))
+    : null
 
   const busyRef = useRef(false)
   const creatingSessionRef = useRef(false)
@@ -947,7 +953,6 @@ export function DesktopController() {
       onNewSessionInWorkspace={startSessionInWorkspace}
       onResumeSession={sessionId => navigate(sessionRoute(sessionId))}
       onSelectProject={id => {
-        setSelectedProjectId(id)
         navigate(projectRoute(id))
       }}
       onTriggerCronJob={jobId => {
@@ -992,7 +997,6 @@ export function DesktopController() {
       <CreateProjectDialog
         onClose={() => setCreateProjectOpen(false)}
         onCreated={project => {
-          setSelectedProjectId(project.id)
           navigate(projectRoute(project.id))
         }}
         open={createProjectOpen}
@@ -1214,13 +1218,7 @@ export function DesktopController() {
           <Route element={<Navigate replace to={NEW_CHAT_ROUTE} />} path="new" />
           <Route element={<LegacySessionRedirect />} path="sessions/:sessionId" />
           <Route
-            element={
-              selectedProjectId ? (
-                <ProjectPageView chatSlot={chatView} projectId={selectedProjectId} />
-              ) : (
-                <Navigate replace to={NEW_CHAT_ROUTE} />
-              )
-            }
+            element={<ProjectPageViewRoute chatView={chatView} />}
             path="project/:id"
           />
           <Route element={<Navigate replace to={NEW_CHAT_ROUTE} />} path="*" />
@@ -1243,4 +1241,14 @@ function LegacySessionRedirect() {
   const { sessionId } = useParams()
 
   return <Navigate replace to={sessionId ? sessionRoute(sessionId) : NEW_CHAT_ROUTE} />
+}
+
+function ProjectPageViewRoute({ chatView }: { chatView: ReactNode }) {
+  const { id } = useParams()
+
+  if (!id) {
+    return <Navigate replace to={NEW_CHAT_ROUTE} />
+  }
+
+  return <ProjectPageView chatSlot={chatView} projectId={decodeURIComponent(id)} />
 }
