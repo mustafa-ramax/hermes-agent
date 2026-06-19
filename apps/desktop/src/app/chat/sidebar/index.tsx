@@ -712,7 +712,21 @@ export function ChatSidebar({
     sessionProfileTotals
   ])
 
-  const displayAgentSessions = agentSessions
+  const nonProjectSessions = useMemo(() => {
+    if (!projects.length) {
+      return agentSessions
+    }
+
+    return agentSessions.filter(s => {
+      if (!s.cwd) {
+        return true
+      }
+
+      return !projects.some(p => s.cwd!.startsWith(p.path))
+    })
+  }, [agentSessions, projects])
+
+  const displayAgentSessions = nonProjectSessions
 
   // Pagination is scope-aware. In "All profiles" mode it tracks the global
   // unified set. When scoped to one profile it must compare that profile's own
@@ -923,10 +937,15 @@ export function ChatSidebar({
 
             {!trimmedQuery && (
               <ProjectsSidebarSection
+                activeSessionId={activeSidebarSessionId}
+                onDeleteSession={onDeleteSession}
                 onNewProject={onNewProject}
+                onResumeSession={onResumeSession}
                 onSelectProject={onSelectProject}
+                onTogglePin={pinSession}
                 projects={projects}
                 selectedProjectId={selectedProjectId}
+                sessions={agentSessions}
               />
             )}
 

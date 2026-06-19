@@ -6,25 +6,39 @@ import { Codicon } from '@/components/ui/codicon'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DisclosureCaret } from '@/components/ui/disclosure-caret'
 import { SidebarGroup, SidebarGroupContent } from '@/components/ui/sidebar'
+import type { SessionInfo } from '@/hermes'
 import { cn } from '@/lib/utils'
 import { $sidebarProjectsOpen, setSidebarProjectsOpen } from '@/store/layout'
 import { removeProject } from '@/store/projects'
 import type { Project } from '@/store/projects'
+import { sessionPinId } from '@/store/session'
 
 import { SidebarPanelLabel } from '../../shell/sidebar-label'
 
+import { SidebarSessionRow } from './session-row'
+
 interface ProjectsSidebarSectionProps {
+  activeSessionId: string | null
+  onDeleteSession: (sessionId: string) => void
   onNewProject: () => void
+  onResumeSession: (sessionId: string) => void
   onSelectProject: (id: string) => void
+  onTogglePin: (sessionId: string) => void
   projects: Project[]
   selectedProjectId: string | null
+  sessions: SessionInfo[]
 }
 
 export function ProjectsSidebarSection({
+  activeSessionId,
+  onDeleteSession,
   onNewProject,
+  onResumeSession,
   onSelectProject,
+  onTogglePin,
   projects,
-  selectedProjectId
+  selectedProjectId,
+  sessions
 }: ProjectsSidebarSectionProps) {
   const open = useStore($sidebarProjectsOpen)
 
@@ -60,14 +74,36 @@ export function ProjectsSidebarSection({
           {projects.length === 0 ? (
             <div className="px-2 py-1 text-[0.6875rem] text-(--ui-text-tertiary)">No projects yet</div>
           ) : (
-            projects.map(project => (
-              <ProjectSidebarRow
-                isActive={selectedProjectId === project.id}
-                key={project.id}
-                onClick={() => onSelectProject(project.id)}
-                project={project}
-              />
-            ))
+            projects.map(project => {
+              const projectSessions = sessions.filter(s => s.cwd?.startsWith(project.path))
+
+              return (
+                <div key={project.id}>
+                  <ProjectSidebarRow
+                    isActive={selectedProjectId === project.id}
+                    onClick={() => onSelectProject(project.id)}
+                    project={project}
+                  />
+                  {projectSessions.length > 0 && (
+                    <div className="ml-4 flex flex-col gap-px">
+                      {projectSessions.map(session => (
+                        <SidebarSessionRow
+                          isPinned={false}
+                          isSelected={activeSessionId === session.id}
+                          isWorking={false}
+                          key={session.id}
+                          onArchive={() => onDeleteSession(session.id)}
+                          onDelete={() => onDeleteSession(session.id)}
+                          onPin={() => onTogglePin(sessionPinId(session))}
+                          onResume={() => onResumeSession(session.id)}
+                          session={session}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })
           )}
         </SidebarGroupContent>
       )}
